@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDS 抑郁自评量表</title>
+<style>
+  body {font-family: Arial,"Noto Sans SC",sans-serif; background:#f5f7fa; margin:0; padding:0; color:#222;}
+  .container {max-width:720px; margin:40px auto; background:#fff; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+  h1 {font-size:24px; margin-bottom:12px; text-align:center;}
+  .lead {color:#555; font-size:15px; margin-bottom:20px; text-align:center;}
+  .illustration {text-align:center; margin:20px 0;}
+  .illustration img {max-width:180px;}
+  .input-group {margin:12px 0;}
+  label {display:block; margin-bottom:6px; font-weight:bold;}
+  input, select {width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;}
+  button {margin-top:20px; padding:12px 18px; border:none; border-radius:8px; background:#3b82f6; color:#fff; cursor:pointer; font-size:16px;}
+  button:hover {background:#2563eb;}
+  .question {font-size:18px; font-weight:bold; margin-bottom:16px;}
+  .options button {
+    display:block;
+    width:100%;
+    margin:6px 0;
+    padding:12px;
+    border:1px solid #ccc;
+    border-radius:8px;
+    background:#f9fafb;
+    cursor:pointer;
+    text-align:left;
+    /* 将选项文字颜色设置为黑色，使用 !important 以覆盖可能的其他样式 */
+    color: #000 !important;
+    font-weight: 500;
+  }
+  .options button:hover {background:#eef2ff; border-color:#3b82f6;}
+  .progress {margin:15px 0; font-size:14px; color:#666;}
+  .progress-bar {height:8px; background:#e5e7eb; border-radius:4px; overflow:hidden;}
+  .progress-bar div {height:100%; background:#3b82f6; width:0; transition:width 0.3s;}
+  .result {margin-top:20px; padding:15px; border-radius:8px; border:1px solid #ddd; background:#fafafa; text-align:center;}
+  .score {font-size:28px; font-weight:bold; color:red; margin:10px 0;}
+  table {border-collapse:collapse; width:100%; margin-top:12px;}
+  th,td {border:1px solid #ccc; padding:8px; text-align:center;}
+  th {background:#f0f4f8;}
+  .restart {margin-top:20px; padding:10px 16px; border:none; border-radius:6px; background:#3b82f6; color:#fff; cursor:pointer;}
+  .restart:hover {background:#2563eb;}
+  .factor-explain {text-align:left; margin-top:12px; font-size:13px; line-height:1.5;}
+  .warning {color:red; font-weight:bold; margin-top:12px; font-size:14px;}
+  #prevBtn {display:none; margin-top:10px; padding:10px 16px; border:none; border-radius:6px; background:#f97316; color:#fff; cursor:pointer;}
+  #prevBtn:hover {background:#ea580c;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+  <!-- 首页 -->
+  <div id="startPage">
+    <h1>SDS 抑郁自评量表</h1>
+    <p class="lead">本测试共有 <strong>20 道题</strong>，请根据<strong>最近一周</strong>的实际感受作答。结果仅供参考，不构成医学诊断。</p>
+    <div class="illustration"><img src="https://cdn-icons-png.flaticon.com/512/4322/4322991.png" alt="心理插画"></div>
+    <div class="input-group">
+      <label for="gender">性别：</label>
+      <select id="gender">
+        <option value="">请选择</option>
+        <option value="male">男</option>
+        <option value="female">女</option>
+        <option value="other">其他</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label for="age">年龄：</label>
+      <input type="number" id="age" min="10" max="100" placeholder="请输入年龄">
+    </div>
+    <button onclick="startQuiz()">开始测试</button>
+  </div>
+
+  <!-- 测试页 -->
+  <div id="quizPage" style="display:none">
+    <div class="progress">问题 <span id="progressText"></span></div>
+    <div class="progress-bar"><div id="progressBar"></div></div>
+    <div class="illustration"><img src="https://cdn-icons-png.flaticon.com/512/4322/4322996.png" alt="测试插图"></div>
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+    <button id="prevBtn" onclick="prevQuestion()">返回上一题</button>
+  </div>
+
+  <!-- 结果页 -->
+  <div id="resultPage" class="result" style="display:none">
+    <div class="illustration"><img src="https://cdn-icons-png.flaticon.com/512/4322/4323007.png" alt="结果插图"></div>
+    <canvas id="factorChart" width="300" height="300"></canvas>
+    <div id="resultContent"></div>
+  </div>
+</div>
+
+<script>
+// SDS 题目
+const questions = [
+  "1. 我觉得闷闷不乐，情绪低沉。",
+  "2. 我觉得一天之中早晨最好。",
+  "3. 我一阵阵哭出来或觉得想哭。",
+  "4. 我晚上睡眠不好。",
+  "5. 我吃得和平时一样多。",
+  "6. 我的性功能正常。",
+  "7. 我感到体重减轻。",
+  "8. 我为便秘烦恼。",
+  "9. 我的心跳比平时快。",
+  "10. 我无缘无故感到疲劳。",
+  "11. 我的头脑和平时一样清楚。",
+  "12. 我觉得经常做的事情并没有困难。",
+  "13. 我觉得不安而平静不下来。",
+  "14. 我对将来抱有希望。",
+  "15. 我比平时容易生气激动。",
+  "16. 我觉得做出决定很容易。",
+  "17. 我觉得自己是个有用的人，有人需要我。",
+  "18. 我的生活过得很有意思。",
+  "19. 我认为如果我死了别人会生活得更好。",
+  "20. 平常感兴趣的事情我仍然照样感兴趣。"
+];
+
+// 反向计分题目
+const reverseIndex = [1,4,5,10,11,13,15,19];
+
+// 选项
+const options = [
+  {text:"没有或很少时间", value:1},
+  {text:"小部分时间", value:2},
+  {text:"相当多时间", value:3},
+  {text:"绝大部分或全部时间", value:4}
+];
+
+// 因子划分
+const factors = {
+  "精神症状因子": {index:[0,2,8,9,12,14,18], range:"7–28", explain:"主要反映情绪低落、心境抑郁、易哭、焦虑不安等精神症状。"},
+  "躯体障碍因子": {index:[3,4,6,7,11], range:"5–20", explain:"主要反映睡眠、食欲、体重及身体功能相关的躯体症状。"},
+  "精神运动性障碍因子": {index:[10,15,16,19], range:"4–16", explain:"主要反映思维、注意、行动速度及决策能力等精神运动性功能。"},
+  "抑郁性心理障碍因子": {index:[1,5,13,17], range:"4–16", explain:"主要反映对自我评价、未来希望感、兴趣丧失及自我价值感的心理症状。"}
+};
+
+let current=0, answers=[];
+
+function startQuiz(){
+  const gender=document.getElementById("gender").value;
+  const age=document.getElementById("age").value;
+  if(!gender || !age){alert("请填写性别和年龄");return;}
+  document.getElementById("startPage").style.display="none";
+  document.getElementById("quizPage").style.display="block";
+  showQuestion();
+}
+
+function showQuestion(){
+  document.getElementById("progressText").innerText=`${current+1} / ${questions.length}`;
+  document.getElementById("progressBar").style.width=((current+1)/questions.length*100)+"%";
+  document.getElementById("question").innerText=questions[current];
+  let html="";
+  options.forEach(o=>{
+    // 在这里生成的按钮会使用上面 CSS 中的 .options button 样式，文字颜色为黑色
+    html+=`<button onclick="choose(${o.value})">${o.text}</button>`;
+  });
+  document.getElementById("options").innerHTML=html;
+  document.getElementById("prevBtn").style.display=current>0?"block":"none";
+}
+
+function choose(val){
+  answers[current]=val;
+  current++;
+  if(current<questions.length){showQuestion();}
+  else{showResult();}
+}
+
+function prevQuestion(){if(current>0){current--;showQuestion();}}
+
+function calcScore(i,val){return reverseIndex.includes(i)?(5-val):val;}
+
+function showResult(){
+  document.getElementById("quizPage").style.display="none";
+  document.getElementById("resultPage").style.display="block";
+  let raw=answers.reduce((s,v,i)=>s+calcScore(i,v),0);
+  let indexScore=Math.round(raw*1.25);
+  let level="",desc="";
+  if(indexScore<53){level="正常";desc="没有抑郁或症状很轻微。";}
+  else if(indexScore<=62){level="轻度抑郁";desc="可能存在轻度抑郁症状，建议注意调整。";}
+  else if(indexScore<=72){level="中度抑郁";desc="症状较明显，建议寻求专业心理评估或咨询。";}
+  else {level="重度抑郁";desc="症状严重，建议尽快联系专业医生或心理专家。";}
+
+  let factorScores={};
+  for(let f in factors){factorScores[f]=factors[f].index.reduce((s,i)=>s+calcScore(i,answers[i]),0);}
+
+  // 图表
+  new Chart(document.getElementById("factorChart"),{
+    type:'radar',
+    data:{labels:Object.keys(factorScores),datasets:[{label:'因子得分',data:Object.values(factorScores),fill:true,backgroundColor:'rgba(59,130,246,0.2)',borderColor:'#3b82f6'}]},
+    options:{scales:{r:{beginAtZero:true}}}
+  });
+
+  document.getElementById("resultContent").innerHTML=`
+    <div class="score">${raw} / 80</div>
+    <div><strong>标准分（指数）：</strong>${indexScore}</div>
+    <div><strong>等级：</strong>${level}</div>
+    <div style="margin-top:8px">${desc}</div>
+    <h3 style="margin-top:16px">因子解释</h3>
+    <div class="factor-explain">${Object.entries(factors).map(([f,v])=>`${f}: ${v.explain}`).join('<br>')}</div>
+    <h3 style="margin-top:16px">SDS 评级示例</h3>
+    <table>
+      <tr><th>指数分数</th><th>说明</th></tr>
+      <tr><td>＜53</td><td>正常范围</td></tr>
+      <tr><td>53–62</td><td>轻度抑郁</td></tr>
+      <tr><td>63–72</td><td>中度抑郁</td></tr>
+      <tr><td>＞72</td><td>重度抑郁</td></tr>
+    </table>
+    <div class="warning">说明：本量表仅为心理健康筛查工具，不能替代专业诊断。如有明显困扰，请及时寻求专业帮助。</div>
+    <button class="restart" onclick="location.reload()">重新开始测试</button>`;
+}
+</script>
+</body>
+</html>
